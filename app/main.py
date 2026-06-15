@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException, Header
-from app.models import WorkfrontSimplePayload, WorkfrontStatus, GenerationResult
-from app.config import settings
 import logging
+from typing import Union
+
+from fastapi import FastAPI, HTTPException, Header
+
+from app.config import settings
+from app.models import GenerationResult, SkippedResult, WorkfrontSimplePayload, WorkfrontStatus
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
@@ -13,7 +16,7 @@ app = FastAPI(
 )
 
 
-@app.post("/webhook/workfront", response_model=GenerationResult)
+@app.post("/webhook/workfront", response_model=Union[GenerationResult, SkippedResult])
 async def workfront_webhook(
     payload: WorkfrontSimplePayload,
     x_webhook_secret: str = Header(default=None),
@@ -26,7 +29,7 @@ async def workfront_webhook(
         raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
     if payload.status != WorkfrontStatus.CONTENT_GENERATION:
-        return {"skipped": True, "reason": f"Status '{payload.status}' not handled"}
+        return SkippedResult(reason=f"Status '{payload.status.value}' not handled")
 
     from orchestrator.weave_simulator import run_pipeline
     return await run_pipeline(payload)

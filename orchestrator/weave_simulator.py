@@ -3,6 +3,7 @@ WeaveSimulator v3 — usa l'AgenticOrchestrator.
 """
 from __future__ import annotations
 import logging
+from pathlib import Path
 
 from app.models import WorkfrontSimplePayload, GenerationResult
 from orchestrator.agent import run_agentic_pipeline
@@ -21,8 +22,7 @@ async def run_pipeline(payload: WorkfrontSimplePayload) -> GenerationResult:
     agent_result = run_agentic_pipeline(payload)
 
     out_path = agent_result["output_path"]
-    from pathlib import Path
-    image_uri = Path(out_path).as_uri()
+    image_uri = Path(out_path).resolve().as_uri()
 
     result = GenerationResult(
         task_id=payload.task_id,

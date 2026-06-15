@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from app.config import settings
 from app.models import WorkfrontSimplePayload, Season, Scope
 from dam.selector import resolve_brief
 from composer.image_composer import compose
@@ -31,6 +32,12 @@ CATALOG_PATH = DAM_PATH / "catalog.json"
 def _load_catalog() -> dict:
     with open(CATALOG_PATH) as f:
         return json.load(f)
+
+
+def _config_value(env_name: str, settings_name: str, default: str = "") -> str:
+    if env_name in os.environ:
+        return os.environ[env_name]
+    return str(getattr(settings, settings_name, default) or default)
 
 
 # ── Tool definitions (OpenAI function calling format) ─────────────────────────
@@ -226,6 +233,44 @@ def _dispatch_tool(name: str, args: dict, scope: str) -> Any:
 
 # ── Agentic loop ───────────────────────────────────────────────────────────────
 
+def _run_deterministic_pipeline(payload: WorkfrontSimplePayload) -> dict:
+    logger.info("[Agent] Demo/no-key/fallback mode → deterministic DAM selection")
+    brief = resolve_brief(payload)
+    catalog = _load_catalog()
+
+    bg_file = next(
+        b["image_file"] for b in catalog["backgrounds"]
+        if b["background_id"] == brief.background.background_id
+    )
+    prod_file = next(
+        p["image_file"] for p in catalog["products"]
+        if p["product_id"] == brief.product.product_id
+    )
+
+    layout = "bottom_center" if payload.scope.value in ("email", "landing") else "right"
+    brightness = 0.85 if payload.season.value in ("winter", "autumn") else 1.0
+
+    out_path = compose(
+        bg_file=bg_file,
+        product_file=prod_file,
+        scope=payload.scope.value,
+        layout=layout,
+        brightness=brightness,
+    )
+
+    return {
+        "output_path": out_path,
+        "background_id": brief.background.background_id,
+        "product_id": brief.product.product_id,
+        "reasoning": (
+            f"Deterministic selection: best background for {payload.season.value} "
+            f"+ {payload.scope.value} scope with {brief.product.tone} tone."
+        ),
+        "prompt_used": "deterministic — no LLM called in demo/fallback mode",
+        "mode": "deterministic",
+    }
+
+
 def run_agentic_pipeline(payload: WorkfrontSimplePayload) -> dict:
     """
     Runs the agentic loop.
@@ -238,49 +283,16 @@ def run_agentic_pipeline(payload: WorkfrontSimplePayload) -> dict:
       prompt_used   → full system prompt sent to LLM
       mode          → 'agent' or 'deterministic'
     """
-    app_mode = os.getenv("APP_MODE", "demo")
+    app_mode = _config_value("APP_MODE", "app_mode", "demo")
+    openai_api_key = _config_value("OPENAI_API_KEY", "openai_api_key")
 
     # ── DEMO / NO API KEY → deterministic DAM selection ──────────────────────
-    if app_mode == "demo" or not os.getenv("OPENAI_API_KEY"):
-        logger.info("[Agent] Demo/no-key mode → deterministic DAM selection")
-        brief = resolve_brief(payload)
-        catalog = _load_catalog()
-
-        bg_file = next(
-            b["image_file"] for b in catalog["backgrounds"]
-            if b["background_id"] == brief.background.background_id
-        )
-        prod_file = next(
-            p["image_file"] for p in catalog["products"]
-            if p["product_id"] == brief.product.product_id
-        )
-
-        layout = "bottom_center" if payload.scope.value in ("email", "landing") else "right"
-        brightness = 0.85 if payload.season.value in ("winter", "autumn") else 1.0
-
-        out_path = compose(
-            bg_file=bg_file,
-            product_file=prod_file,
-            scope=payload.scope.value,
-            layout=layout,
-            brightness=brightness,
-        )
-
-        return {
-            "output_path": out_path,
-            "background_id": brief.background.background_id,
-            "product_id": brief.product.product_id,
-            "reasoning": (
-                f"Deterministic selection: best background for {payload.season.value} "
-                f"+ {payload.scope.value} scope with {brief.product.tone} tone."
-            ),
-            "prompt_used": "deterministic — no LLM called in demo mode",
-            "mode": "deterministic",
-        }
+    if app_mode == "demo" or not openai_api_key:
+        return _run_deterministic_pipeline(payload)
 
     # ── AGENT MODE (GPT-4o with tool calling) ────────────────────────────────
     from openai import OpenAI
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(api_key=openai_api_key)
 
     catalog = _load_catalog()
     product_info = _tool_get_product_info(payload.product_id)
@@ -317,7 +329,7 @@ then call get_product_info to confirm the product, then call compose_image."""
         logger.info(f"[Agent] Iteration {iteration + 1}/{max_iterations}")
 
         response = client.chat.completions.create(
-            model=os.getenv("LLM_MODEL", "gpt-4o"),
+            model=_config_value("LLM_MODEL", "llm_model", "gpt-4o"),
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",
@@ -359,7 +371,7 @@ then call get_product_info to confirm the product, then call compose_image."""
 
     if not final_result:
         logger.error("[Agent] compose_image never called — falling back to deterministic")
-        return run_agentic_pipeline.__wrapped__(payload)  # fallback
+        return _run_deterministic_pipeline(payload)
 
     logger.info(f"[Agent] Done — output={final_result['output_path']}")
     return final_result

@@ -150,6 +150,15 @@ class TestDeterministicPipeline:
         with pytest.raises(Exception):
             run_agentic_pipeline(_make_payload(product_id="PROD_999"))
 
+    def test_run_pipeline_returns_file_uri(self):
+        import asyncio
+
+        from orchestrator.weave_simulator import run_pipeline
+
+        result = asyncio.run(run_pipeline(_make_payload()))
+
+        assert result.generated_image_url.startswith("file://")
+
 
 # ── Test tool functions ────────────────────────────────────────────────────────
 
@@ -279,3 +288,49 @@ class TestAgentWithMockedLLM:
         # Cleanup
         os.environ["APP_MODE"] = "demo"
         os.environ["OPENAI_API_KEY"] = ""
+
+    def test_agent_falls_back_when_llm_does_not_compose(self):
+        os.environ["APP_MODE"] = "agent"
+        os.environ["OPENAI_API_KEY"] = "sk-test-fake"
+
+        resp = MagicMock()
+        resp.choices[0].message.tool_calls = None
+        resp.choices[0].message.content = "I cannot compose this."
+
+        with patch("openai.OpenAI") as mock_openai_cls:
+            mock_client = MagicMock()
+            mock_openai_cls.return_value = mock_client
+            mock_client.chat.completions.create.return_value = resp
+
+            from orchestrator.agent import run_agentic_pipeline
+            result = run_agentic_pipeline(_make_payload())
+
+        assert result["mode"] == "deterministic"
+        assert Path(result["output_path"]).exists()
+
+        # Cleanup
+        os.environ["APP_MODE"] = "demo"
+        os.environ["OPENAI_API_KEY"] = ""
+
+    def test_agent_uses_settings_when_env_vars_are_absent(self, monkeypatch):
+        monkeypatch.delenv("APP_MODE", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        import orchestrator.agent as agent
+
+        monkeypatch.setattr(agent.settings, "app_mode", "agent")
+        monkeypatch.setattr(agent.settings, "openai_api_key", "sk-test-fake")
+
+        resp = MagicMock()
+        resp.choices[0].message.tool_calls = None
+        resp.choices[0].message.content = "No tool call."
+
+        with patch("openai.OpenAI") as mock_openai_cls:
+            mock_client = MagicMock()
+            mock_openai_cls.return_value = mock_client
+            mock_client.chat.completions.create.return_value = resp
+
+            result = agent.run_agentic_pipeline(_make_payload())
+
+        assert result["mode"] == "deterministic"
+        mock_openai_cls.assert_called_once_with(api_key="sk-test-fake")

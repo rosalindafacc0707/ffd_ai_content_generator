@@ -3,7 +3,6 @@ Pydantic models for the FullForce PoC.
 """
 from __future__ import annotations
 from enum import Enum
-from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -102,3 +101,9 @@ class GenerationResult(BaseModel):
     season: str
     scope: str
     status: str = "ready_for_review"
+
+
+class SkippedResult(BaseModel):
+    """Response returned when a Workfront task should not trigger generation."""
+    skipped: bool = True
+    reason: str
