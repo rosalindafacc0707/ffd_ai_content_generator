@@ -1,7 +1,13 @@
-import pytest
-from app.models import WorkfrontTaskPayload, WorkfrontStatus, Channel, Audience, AgeSegment
+from app.briefs import build_task_from_workfront_payload
+from app.models import (
+    AgeSegment,
+    Audience,
+    Channel,
+    WorkfrontBriefPayload,
+    WorkfrontStatus,
+    WorkfrontTaskPayload,
+)
 from dam.selector import select_assets, select_images
-from pathlib import Path
 
 FIXTURE_TASK = WorkfrontTaskPayload(
     task_id="test-001", project_id="proj-test",
@@ -27,3 +33,18 @@ def test_select_images_age_segment_scored_higher():
 def test_select_images_top3():
     images = select_images(FIXTURE_TASK, top_k=3)
     assert len(images) <= 3
+
+
+def test_workfront_brief_payload_hydrates_internal_task():
+    payload = WorkfrontBriefPayload(
+        product_id="body_cream",
+        season="replenishment",
+        scope=Channel.EMAIL,
+    )
+
+    task = build_task_from_workfront_payload(payload)
+
+    assert task.product == "Body Cream"
+    assert task.channel == Channel.EMAIL
+    assert task.ritual_occasion == "replenishment"
+    assert task.status == WorkfrontStatus.CONTENT_GENERATION

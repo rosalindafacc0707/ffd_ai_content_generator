@@ -1,0 +1,186 @@
+{
+  "products": [
+    {
+      "product_id": "PROD_001",
+      "name": "Namaste Body Cream",
+      "collection": "The Ritual of Namaste",
+      "category": "body",
+      "tone": "luxury",
+      "seasons": ["spring", "summer", "evergreen"],
+      "image_file": "product_001_namaste_body_cream.png",
+      "description": "Rich moisturising body cream with Indian Rose and Sweet Almond Oil."
+    },
+    {
+      "product_id": "PROD_002",
+      "name": "Namaste Shower Foam",
+      "collection": "The Ritual of Namaste",
+      "category": "body",
+      "tone": "luxury",
+      "seasons": ["spring", "evergreen"],
+      "image_file": "product_002_namaste_shower_foam.png",
+      "description": "Foaming shower gel that cleanses and softens skin."
+    },
+    {
+      "product_id": "PROD_003",
+      "name": "Sakura Shower Foam",
+      "collection": "The Ritual of Sakura",
+      "category": "body",
+      "tone": "warm",
+      "seasons": ["spring", "summer"],
+      "image_file": "product_003_sakura_shower_foam.png",
+      "description": "Cherry blossom shower foam for a fresh, floral experience."
+    },
+    {
+      "product_id": "PROD_004",
+      "name": "Sakura Candle",
+      "collection": "The Ritual of Sakura",
+      "category": "home",
+      "tone": "warm",
+      "seasons": ["spring", "winter", "evergreen"],
+      "image_file": "product_004_sakura_candle.png",
+      "description": "Scented candle with cherry blossom and rice milk."
+    },
+    {
+      "product_id": "PROD_005",
+      "name": "Ayurveda Face Oil",
+      "collection": "The Ritual of Ayurveda",
+      "category": "face",
+      "tone": "informative",
+      "seasons": ["autumn", "winter", "evergreen"],
+      "image_file": "product_005_ayurveda_face_oil.png",
+      "description": "Nourishing face oil with Indian herbs and sacred lotus."
+    },
+    {
+      "product_id": "PROD_006",
+      "name": "Ayurveda Body Cream",
+      "collection": "The Ritual of Ayurveda",
+      "category": "body",
+      "tone": "informative",
+      "seasons": ["autumn", "winter"],
+      "image_file": "product_006_ayurveda_body_cream.png",
+      "description": "Deep moisturising body cream inspired by Ayurvedic rituals."
+    },
+    {
+      "product_id": "PROD_007",
+      "name": "Namaste Bath Salt",
+      "collection": "The Ritual of Namaste",
+      "category": "body",
+      "tone": "luxury",
+      "seasons": ["winter", "evergreen"],
+      "image_file": "product_007_namaste_bath_salt.png",
+      "description": "Relaxing bath salt with Indian Rose and Himalayan salt."
+    },
+    {
+      "product_id": "PROD_008",
+      "name": "Sakura Body Scrub",
+      "collection": "The Ritual of Sakura",
+      "category": "body",
+      "tone": "warm",
+      "seasons": ["spring", "summer"],
+      "image_file": "product_008_sakura_body_scrub.png",
+      "description": "Exfoliating body scrub with cherry blossom and rice bran."
+    },
+    {
+      "product_id": "PROD_009",
+      "name": "Ayurveda Bath Foam",
+      "collection": "The Ritual of Ayurveda",
+      "category": "body",
+      "tone": "informative",
+      "seasons": ["autumn", "winter"],
+      "image_file": "product_009_ayurveda_bath_foam.png",
+      "description": "Calming bath foam with Indian herbs and warm spices."
+    },
+    {
+      "product_id": "PROD_010",
+      "name": "Namaste Dry Oil",
+      "collection": "The Ritual of Namaste",
+      "category": "body",
+      "tone": "luxury",
+      "seasons": ["summer", "spring"],
+      "image_file": "product_010_namaste_dry_oil.png",
+      "description": "Lightweight dry body oil with Indian Rose and Sweet Almond."
+    }
+  ],
+  "backgrounds": [
+    {
+      "background_id": "BG_001",
+      "name": "Spring Botanical Garden",
+      "season": "spring",
+      "mood": "bright",
+      "scope": ["email", "landing", "all"],
+      "image_file": "bg_001_spring_botanical.png"
+    },
+    {
+      "background_id": "BG_002",
+      "name": "Spring Cherry Blossom",
+      "season": "spring",
+      "mood": "vibrant",
+      "scope": ["social", "all"],
+      "image_file": "bg_002_spring_cherry.png"
+    },
+    {
+      "background_id": "BG_003",
+      "name": "Summer Warm Marble",
+      "season": "summer",
+      "mood": "bright",
+      "scope": ["email", "landing", "all"],
+      "image_file": "bg_003_summer_marble.png"
+    },
+    {
+      "background_id": "BG_004",
+      "name": "Summer Coastal Light",
+      "season": "summer",
+      "mood": "vibrant",
+      "scope": ["social", "all"],
+      "image_file": "bg_004_summer_coastal.png"
+    },
+    {
+      "background_id": "BG_005",
+      "name": "Autumn Warm Linen",
+      "season": "autumn",
+      "mood": "calm",
+      "scope": ["email", "landing", "all"],
+      "image_file": "bg_005_autumn_linen.png"
+    },
+    {
+      "background_id": "BG_006",
+      "name": "Autumn Dark Wood",
+      "season": "autumn",
+      "mood": "dark",
+      "scope": ["social", "email", "all"],
+      "image_file": "bg_006_autumn_wood.png"
+    },
+    {
+      "background_id": "BG_007",
+      "name": "Winter Candle Glow",
+      "season": "winter",
+      "mood": "dark",
+      "scope": ["email", "landing", "all"],
+      "image_file": "bg_007_winter_candle.png"
+    },
+    {
+      "background_id": "BG_008",
+      "name": "Winter Minimal White",
+      "season": "winter",
+      "mood": "neutral",
+      "scope": ["social", "landing", "all"],
+      "image_file": "bg_008_winter_white.png"
+    },
+    {
+      "background_id": "BG_009",
+      "name": "Evergreen Studio Neutral",
+      "season": "evergreen",
+      "mood": "neutral",
+      "scope": ["email", "social", "landing", "all"],
+      "image_file": "bg_009_evergreen_studio.png"
+    },
+    {
+      "background_id": "BG_010",
+      "name": "Evergreen Botanical Flat",
+      "season": "evergreen",
+      "mood": "calm",
+      "scope": ["email", "social", "landing", "all"],
+      "image_file": "bg_010_evergreen_botanical.png"
+    }
+  ]
+}

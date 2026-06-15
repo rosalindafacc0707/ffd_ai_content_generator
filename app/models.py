@@ -1,6 +1,5 @@
 """
 Pydantic models for the FullForce PoC.
-Maps the Workfront task payload to the internal orchestration schema.
 """
 from __future__ import annotations
 from enum import Enum
@@ -8,86 +7,98 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+# ── Enums ─────────────────────────────────────────────────────────────────────
+
 class WorkfrontStatus(str, Enum):
     CONTENT_GENERATION = "Content Generation"
     REVIEW = "Review"
     APPROVED = "Approved"
 
 
-class Channel(str, Enum):
+class Season(str, Enum):
+    SPRING = "spring"
+    SUMMER = "summer"
+    AUTUMN = "autumn"
+    WINTER = "winter"
+    EVERGREEN = "evergreen"
+
+
+class Scope(str, Enum):
     EMAIL = "email"
     SOCIAL = "social"
     LANDING = "landing"
     ALL = "all"
 
 
-class AgeSegment(str, Enum):
-    YOUNG = "young"
-    MATURE = "mature"
-    FAMILY = "family"
-    ALL = "all"
+# ── Incoming Workfront payload (simplified) ───────────────────────────────────
 
-
-class Audience(str, Enum):
-    NEW = "new"
-    LOYALTY = "loyalty"
-    REACTIVATION = "reactivation"
-    ALL = "all"
-
-
-class WorkfrontTaskPayload(BaseModel):
-    """Incoming webhook payload from Adobe Workfront."""
+class WorkfrontSimplePayload(BaseModel):
+    """
+    Simplified webhook payload from Adobe Workfront.
+    Workfront sends only product_id, season and scope —
+    everything else is resolved internally from the DAM catalog.
+    """
     task_id: str = Field(..., description="Workfront task ID")
     project_id: str
     status: WorkfrontStatus
-    collection: str = Field(..., description="e.g. 'The Ritual of Namaste'")
-    product: Optional[str] = None
-    channel: Channel
-    audience: Audience
-    age_segment: AgeSegment
-    market: str = Field(..., description="e.g. NL, DE, UK, all")
-    language: str = Field(default="en")
-    objective: str = Field(..., description="Campaign objective free text")
-    visual_mood: Optional[str] = None
-    ritual_occasion: Optional[str] = None
+    product_id: str = Field(..., description="e.g. 'PROD_001' — looked up in DAM catalog")
+    season: Season = Field(..., description="Campaign season")
+    scope: Scope = Field(..., description="Output channel / scope")
 
 
-class SelectedAsset(BaseModel):
-    """A copy asset selected from the DAM."""
-    id: str
-    title: str
-    body: str
-    score: float
-    channel: str
+# ── DAM catalog models ────────────────────────────────────────────────────────
+
+class ProductEntry(BaseModel):
+    """One product entry in dam/catalog.json"""
+    product_id: str
+    name: str
     collection: str
-    tone: str
+    category: str                        # e.g. body, face, home
+    tone: str                            # luxury | warm | energetic | informative
+    seasons: list[str]                   # seasons this product is active in
+    image_file: str                      # filename inside dam/products/
+    description: str
 
 
-class SelectedImage(BaseModel):
-    """An image asset selected from the DAM."""
-    id: str
-    title: str
-    image_url: str
-    alt_text: str
-    visual_description: str
-    placement_hint: str
-    score: float
+class BackgroundEntry(BaseModel):
+    """One background entry in dam/catalog.json"""
+    background_id: str
+    name: str
+    season: str                          # spring | summer | autumn | winter | evergreen
+    mood: str                            # calm | vibrant | dark | bright | neutral
+    scope: list[str]                     # which scopes/channels it works for
+    image_file: str                      # filename inside dam/backgrounds/
 
 
-class GenerationRequest(BaseModel):
-    """Internal object passed to the orchestrator."""
-    task: WorkfrontTaskPayload
-    selected_assets: list[SelectedAsset]
-    selected_images: list[SelectedImage]
-    enriched_prompt: str
+class DAMCatalog(BaseModel):
+    products: list[ProductEntry]
+    backgrounds: list[BackgroundEntry]
+
+
+# ── Internal orchestration models ─────────────────────────────────────────────
+
+class ResolvedBrief(BaseModel):
+    """
+    Full brief assembled by the orchestrator from the simple Workfront payload
+    + DAM catalog lookup. This is what gets passed to the prompt builder.
+    """
+    task_id: str
+    product: ProductEntry
+    background: BackgroundEntry
+    season: Season
+    scope: Scope
+    product_image_path: str              # absolute local path
+    background_image_path: str          # absolute local path
 
 
 class GenerationResult(BaseModel):
-    """Result returned to Workfront."""
+    """Result returned to Workfront after generation."""
     task_id: str
     generated_image_url: str
     generated_copy: str
     prompt_used: str
-    images_used: list[str]
-    assets_used: list[str]
+    product_id: str
+    background_id: str
+    season: str
+    scope: str
     status: str = "ready_for_review"
