@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     dam_local_path: Path = Path("./dam")
     dam_images_json: Path = Path("./dam/images_seed.json")
     openai_api_key: str = ""
-    llm_model: str = "gpt-4o"
+    llm_model: str = "gpt-4o-mini"
+    llm_provider: str = "ollama"  # "openai" or "ollama"
+    ollama_api_url: str = "http://localhost:11434"
     app_mode: str = "demo"
     log_level: str = "INFO"
     webhook_secret: str = "changeme"

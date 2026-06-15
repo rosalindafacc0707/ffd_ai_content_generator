@@ -2,9 +2,10 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import asyncio
 import json
 import time
+import os
+import requests
 import streamlit as st
 from PIL import Image
 
@@ -13,7 +14,8 @@ from app.models import (
     Season, Scope
 )
 from dam.selector import resolve_brief
-from orchestrator.weave_simulator import run_pipeline
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 CATALOG_PATH  = Path(__file__).parent.parent / "dam" / "catalog.json"
 GENERATED_DIR = Path(__file__).parent.parent / "dam" / "generated"
@@ -113,7 +115,23 @@ with tab_gen:
 
         with st.spinner(f"⚙️ Running pipeline in **{app_mode}** mode..."):
             try:
-                result = asyncio.run(run_pipeline(payload))
+                # 🚀 CHIAMA IL BACKEND VIA HTTP
+                response = requests.post(
+                    f"{BACKEND_URL}/generate",
+                    json=payload.model_dump(),
+                    timeout=300,
+                )
+                response.raise_for_status()
+                result_dict = response.json()
+                
+                # Ricostruisci l'oggetto GenerationResult da dict
+                from app.models import GenerationResult
+                result = GenerationResult(**result_dict)
+                
+            except requests.exceptions.ConnectionError:
+                st.error(f"❌ Cannot connect to backend at {BACKEND_URL}")
+                st.info("Make sure the FastAPI backend is running: `uvicorn app.main:app --reload`")
+                st.stop()
             except Exception as e:
                 st.error(f"❌ Pipeline error: {e}")
                 st.stop()

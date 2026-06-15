@@ -281,17 +281,142 @@ def run_agentic_pipeline(payload: WorkfrontSimplePayload) -> dict:
       product_id    → product used
       reasoning     → LLM explanation
       prompt_used   → full system prompt sent to LLM
-      mode          → 'agent' or 'deterministic'
+      mode          → 'agent' or 'deterministic' or 'ollama'
     """
     app_mode = _config_value("APP_MODE", "app_mode", "demo")
+    llm_provider = _config_value("LLM_PROVIDER", "llm_provider", "ollama").lower()
     openai_api_key = _config_value("OPENAI_API_KEY", "openai_api_key")
 
     # ── DEMO / NO API KEY → deterministic DAM selection ──────────────────────
-    if app_mode == "demo" or not openai_api_key:
+    if app_mode == "demo":
         return _run_deterministic_pipeline(payload)
 
+    # ── OLLAMA MODE (LLaVA / local multimodal) ───────────────────────────────
+    if llm_provider == "ollama":
+        return _run_ollama_pipeline(payload)
+
     # ── AGENT MODE (GPT-4o with tool calling) ────────────────────────────────
+    if llm_provider == "openai" and openai_api_key:
+        return _run_openai_pipeline(payload)
+
+    # ── FALLBACK ──────────────────────────────────────────────────────────────
+    logger.warning(
+        f"[Agent] No valid LLM provider configured (provider={llm_provider}, "
+        f"has_key={bool(openai_api_key)}). Falling back to deterministic."
+    )
+    return _run_deterministic_pipeline(payload)
+
+
+def _run_ollama_pipeline(payload: WorkfrontSimplePayload) -> dict:
+    """
+    Uses local Ollama (LLaVA or other multimodal model) to decide composition.
+    Faster than OpenAI, runs locally, free.
+    """
+    import httpx
+
+    logger.info(f"[Agent] Using Ollama for task={payload.task_id}")
+    ollama_url = _config_value("OLLAMA_API_URL", "ollama_api_url", "http://localhost:11434")
+    llm_model = _config_value("LLM_MODEL", "llm_model", "llava")
+
+    catalog = _load_catalog()
+    product_info = _tool_get_product_info(payload.product_id)
+
+    # ── Get available backgrounds ─────────────────────────────────────────────
+    available_bgs = _tool_get_available_backgrounds(payload.season.value, payload.scope.value)
+    bg_list = "\n".join([
+        f"- {bg['background_id']}: {bg['name']} ({bg['mood']}, season={bg['season']})"
+        for bg in available_bgs
+    ])
+
+    prompt = f"""You are a creative director. Choose the best background for this campaign.
+
+Product: {product_info.get('name')} ({product_info.get('tone')} tone)
+Collection: {product_info.get('collection')}
+Season: {payload.season.value}
+Scope: {payload.scope.value}
+
+Available backgrounds:
+{bg_list}
+
+RESPOND ONLY with:
+BACKGROUND: <background_id>
+LAYOUT: <center|bottom_center|left|right>
+BRIGHTNESS: <0.8|0.9|1.0|1.1|1.2>
+REASONING: <one sentence why>
+
+Example:
+BACKGROUND: BG_005
+LAYOUT: bottom_center
+BRIGHTNESS: 0.9
+REASONING: Soft autumn vibes complement the luxury tone perfectly."""
+
+    try:
+        logger.info(f"[Agent] Calling Ollama at {ollama_url}...")
+        response = httpx.post(
+            f"{ollama_url}/api/generate",
+            json={
+                "model": llm_model,
+                "prompt": prompt,
+                "stream": False,
+                "temperature": 0.3,
+            },
+            timeout=120.0,
+        )
+        response.raise_for_status()
+        result_text = response.json().get("response", "").strip()
+        logger.info(f"[Agent] Ollama response:\n{result_text}")
+
+        # Parse the structured response
+        lines = result_text.split("\n")
+        bg_id = None
+        layout = "bottom_center"
+        brightness = 1.0
+        reasoning = "Selected by Ollama LLaVA"
+
+        for line in lines:
+            if line.startswith("BACKGROUND:"):
+                bg_id = line.split(":", 1)[1].strip()
+            elif line.startswith("LAYOUT:"):
+                layout = line.split(":", 1)[1].strip()
+            elif line.startswith("BRIGHTNESS:"):
+                try:
+                    brightness = float(line.split(":", 1)[1].strip())
+                except:
+                    brightness = 1.0
+            elif line.startswith("REASONING:"):
+                reasoning = line.split(":", 1)[1].strip()
+
+        # Validate and fallback
+        if not bg_id or bg_id not in [b["background_id"] for b in available_bgs]:
+            logger.warning(f"[Agent] Invalid background {bg_id} from Ollama — using fallback")
+            bg_id = available_bgs[0]["background_id"] if available_bgs else "BG_001"
+
+        # Compose the image
+        result = _tool_compose_image(
+            background_id=bg_id,
+            product_id=payload.product_id,
+            layout=layout,
+            brightness=brightness,
+            reasoning=reasoning,
+            scope=payload.scope.value,
+        )
+
+        if result.get("success"):
+            result["prompt_used"] = prompt
+            result["mode"] = "ollama"
+            logger.info(f"[Agent] Ollama pipeline done → {result['output_path']}")
+            return result
+
+    except Exception as e:
+        logger.error(f"[Agent] Ollama error: {e} — falling back to deterministic")
+
+    return _run_deterministic_pipeline(payload)
+
+
+def _run_openai_pipeline(payload: WorkfrontSimplePayload) -> dict:
+    """OpenAI agent with tool calling (original implementation)."""
     from openai import OpenAI
+    openai_api_key = _config_value("OPENAI_API_KEY", "openai_api_key")
     client = OpenAI(api_key=openai_api_key)
 
     catalog = _load_catalog()
