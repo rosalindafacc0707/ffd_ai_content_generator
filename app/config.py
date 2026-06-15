@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     app_mode: str = "demo"
     log_level: str = "INFO"
     webhook_secret: str = "changeme"
+    sd_api_url: str = "http://localhost:7860"   # ← NUOVO
 
     class Config:
         env_file = ".env"
